@@ -95,8 +95,8 @@ model:
 # ---- Training ----
 training:
   epochs: 40
-  batch_size: 64
-  gradient_accumulation_steps: 4  # effective batch = 256
+  batch_size: 16
+  gradient_accumulation_steps: 16  # effective batch = 256
   
   # Optimizer
   optimizer:
