@@ -14,7 +14,7 @@ function App() {
   const [history, setHistory] = useState([])
   const [activeSection, setActiveSection] = useState('home')
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+  const API_URL = import.meta.env.VITE_API_URL || ''
 
   const handleAnalyze = async (file) => {
     setLoading(true)

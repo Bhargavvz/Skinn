@@ -16,7 +16,8 @@ import numpy as np
 from PIL import Image
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 import yaml
 
 # Add project root to path
@@ -181,9 +182,25 @@ async def predict(file: UploadFile = File(...)):
 
 @app.on_event("startup")
 async def startup_event():
-    """Pre-load model on startup for faster first request."""
+    """Pre-load model on startup and mount frontend."""
     logger.info("SkinGuard AI API starting up...")
-    # Optionally preload: get_predictor()
+
+    # Mount the React frontend build (if it exists)
+    frontend_dist = os.path.join(PROJECT_ROOT, "frontend", "dist")
+    if os.path.isdir(frontend_dist):
+        # Serve static assets (JS, CSS, images)
+        app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="assets")
+        logger.info(f"Frontend mounted from: {frontend_dist}")
+
+        # Catch-all: serve index.html for any non-API route (SPA fallback)
+        @app.get("/{full_path:path}")
+        async def serve_frontend(full_path: str):
+            file_path = os.path.join(frontend_dist, full_path)
+            if os.path.isfile(file_path):
+                return FileResponse(file_path)
+            return FileResponse(os.path.join(frontend_dist, "index.html"))
+    else:
+        logger.warning(f"Frontend not found at {frontend_dist}. Run 'cd frontend && npm run build' first.")
 
 
 if __name__ == "__main__":
