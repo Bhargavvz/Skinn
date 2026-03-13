@@ -60,11 +60,12 @@ def get_train_transforms(cfg):
         ),
         A.HorizontalFlip(p=aug_cfg["horizontal_flip_p"]),
         A.VerticalFlip(p=aug_cfg["vertical_flip_p"]),
-        A.ShiftScaleRotate(
-            shift_limit=aug_cfg["shift_scale_rotate"]["shift_limit"],
-            scale_limit=aug_cfg["shift_scale_rotate"]["scale_limit"],
-            rotate_limit=aug_cfg["shift_scale_rotate"]["rotate_limit"],
-            border_mode=0,
+        A.Affine(
+            translate_percent={"x": (-aug_cfg["shift_scale_rotate"]["shift_limit"], aug_cfg["shift_scale_rotate"]["shift_limit"]),
+                              "y": (-aug_cfg["shift_scale_rotate"]["shift_limit"], aug_cfg["shift_scale_rotate"]["shift_limit"])},
+            scale=(1 - aug_cfg["shift_scale_rotate"]["scale_limit"], 1 + aug_cfg["shift_scale_rotate"]["scale_limit"]),
+            rotate=(-aug_cfg["shift_scale_rotate"]["rotate_limit"], aug_cfg["shift_scale_rotate"]["rotate_limit"]),
+            mode=0,
             p=aug_cfg["shift_scale_rotate"]["p"]
         ),
         A.OneOf([
@@ -86,7 +87,7 @@ def get_train_transforms(cfg):
             A.Emboss(p=1.0),
         ], p=0.3),
         A.GaussNoise(
-            std_range=tuple(aug_cfg["gauss_noise"]["var_limit"]),
+            std_range=(0.02, 0.1),
             p=aug_cfg["gauss_noise"]["p"]
         ),
         A.CoarseDropout(
