@@ -22,18 +22,17 @@ data:
   pin_memory: true
   prefetch_factor: 4
 
-  # Class names (ISIC 2019 — 8 classes)
+  # Class names (HAM10000 — 7 classes)
   class_names:
-    - "MEL"     # Melanoma
-    - "NV"      # Melanocytic nevus
-    - "BCC"     # Basal cell carcinoma
-    - "AK"      # Actinic keratosis
-    - "BKL"     # Benign keratosis
-    - "DF"      # Dermatofibroma
-    - "VASC"    # Vascular lesion
-    - "SCC"     # Squamous cell carcinoma
+    - "actinic_keratoses"          # Actinic keratosis
+    - "basal_cell_carcinoma"       # Basal cell carcinoma
+    - "benign_keratosis-like_lesions"  # Benign keratosis
+    - "dermatofibroma"             # Dermatofibroma
+    - "melanocytic_Nevi"           # Melanocytic nevus
+    - "melanoma"                   # Melanoma
+    - "vascular_lesions"           # Vascular lesion
 
-  num_classes: 8
+  num_classes: 7
 
   # Augmentation settings
   augmentation:
@@ -90,7 +89,7 @@ model:
     hidden_dim: 512
     dropout: 0.4
 
-  num_classes: 8
+  num_classes: 7
   pretrained: true
 
 # ---- Training ----

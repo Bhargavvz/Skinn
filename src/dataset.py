@@ -53,7 +53,7 @@ def get_train_transforms(cfg):
 
     return A.Compose([
         A.RandomResizedCrop(
-            height=img_size, width=img_size,
+            size=(img_size, img_size),
             scale=tuple(aug_cfg["random_resized_crop"]["scale"]),
             ratio=tuple(aug_cfg["random_resized_crop"]["ratio"]),
             p=1.0
@@ -86,14 +86,14 @@ def get_train_transforms(cfg):
             A.Emboss(p=1.0),
         ], p=0.3),
         A.GaussNoise(
-            var_limit=tuple(aug_cfg["gauss_noise"]["var_limit"]),
+            std_range=tuple(aug_cfg["gauss_noise"]["var_limit"]),
             p=aug_cfg["gauss_noise"]["p"]
         ),
         A.CoarseDropout(
-            max_holes=aug_cfg["coarse_dropout"]["max_holes"],
-            max_height=aug_cfg["coarse_dropout"]["max_height"],
-            max_width=aug_cfg["coarse_dropout"]["max_width"],
-            fill_value=0,
+            num_holes_range=(1, aug_cfg["coarse_dropout"]["max_holes"]),
+            hole_height_range=(1, aug_cfg["coarse_dropout"]["max_height"]),
+            hole_width_range=(1, aug_cfg["coarse_dropout"]["max_width"]),
+            fill=0,
             p=aug_cfg["coarse_dropout"]["p"]
         ),
         A.Normalize(
@@ -108,8 +108,8 @@ def get_val_transforms(cfg):
     """Minimal transforms for validation/test."""
     img_size = cfg["data"]["image_size"]
     return A.Compose([
-        A.Resize(height=int(img_size * 1.15), width=int(img_size * 1.15)),
-        A.CenterCrop(height=img_size, width=img_size),
+        A.Resize(int(img_size * 1.15), int(img_size * 1.15)),
+        A.CenterCrop(img_size, img_size),
         A.Normalize(
             mean=[0.485, 0.456, 0.406],
             std=[0.229, 0.224, 0.225]
@@ -168,18 +168,25 @@ def load_hf_dataset(cfg, smoke_test=False):
     logger.info(f"Loading dataset: {dataset_name} from Hugging Face...")
 
     # Load the dataset
-    ds = load_dataset(dataset_name, trust_remote_code=True)
+    ds = load_dataset(dataset_name)
 
     # The dataset may have different split structures
-    if "train" in ds and "test" in ds:
+    if "train" in ds and "validation" in ds and "test" in ds:
+        # All 3 splits available — use them directly
         all_data = ds["train"]
+        val_data = ds["validation"]
+        test_data = ds["test"]
+    elif "train" in ds and "test" in ds:
+        all_data = ds["train"]
+        val_data = None
         test_data = ds["test"]
     elif "train" in ds:
         all_data = ds["train"]
+        val_data = None
         test_data = None
     else:
-        # Single split — we'll manually split
         all_data = ds[list(ds.keys())[0]]
+        val_data = None
         test_data = None
 
     # Extract images and labels
@@ -212,6 +219,8 @@ def load_hf_dataset(cfg, smoke_test=False):
     # For smoke test, use tiny subset
     if smoke_test:
         all_data = all_data.select(range(min(200, len(all_data))))
+        if val_data is not None:
+            val_data = val_data.select(range(min(50, len(val_data))))
         if test_data is not None:
             test_data = test_data.select(range(min(50, len(test_data))))
 
@@ -219,6 +228,7 @@ def load_hf_dataset(cfg, smoke_test=False):
     labels_all = all_data[label_col]
 
     # Convert string labels to integers if needed
+    label_to_idx = None
     if isinstance(labels_all[0], str):
         unique_labels = sorted(set(labels_all))
         label_to_idx = {l: i for i, l in enumerate(unique_labels)}
@@ -239,14 +249,28 @@ def load_hf_dataset(cfg, smoke_test=False):
     val_ratio = cfg["data"]["val_split"]
     test_ratio = cfg["data"]["test_split"]
 
-    if test_data is not None:
-        # Already have a separate test set
+    if val_data is not None and test_data is not None:
+        # All 3 splits available from HF — use them directly (best case)
+        images_train = images_all
+        labels_train = labels_all
+
+        images_val = val_data[image_col]
+        labels_val = list(val_data[label_col])
+        if isinstance(labels_val[0], str):
+            labels_val = [label_to_idx[l] for l in labels_val]
+
+        images_test = test_data[image_col]
+        labels_test = list(test_data[label_col])
+        if isinstance(labels_test[0], str):
+            labels_test = [label_to_idx[l] for l in labels_test]
+
+    elif test_data is not None:
+        # Have train + test, need to split train → train/val
         images_test = test_data[image_col]
         labels_test = list(test_data[label_col])
         if isinstance(labels_test[0], str):
             labels_test = [label_to_idx[l] for l in labels_test]
         
-        # Split remaining into train/val
         val_frac = val_ratio / (train_ratio + val_ratio)
         indices = list(range(len(labels_all)))
         train_idx, val_idx = train_test_split(
@@ -257,16 +281,14 @@ def load_hf_dataset(cfg, smoke_test=False):
         images_val = [images_all[i] for i in val_idx]
         labels_val = [labels_all[i] for i in val_idx]
     else:
-        # Split into train/val/test
+        # Only one split — manually create train/val/test
         indices = list(range(len(labels_all)))
         
-        # First split: train+val vs test
         trainval_idx, test_idx = train_test_split(
             indices, test_size=test_ratio, stratify=labels_all, random_state=cfg["project"]["seed"]
         )
         labels_trainval = [labels_all[i] for i in trainval_idx]
 
-        # Second split: train vs val
         val_frac = val_ratio / (train_ratio + val_ratio)
         train_idx, val_idx = train_test_split(
             trainval_idx, test_size=val_frac, stratify=labels_trainval, random_state=cfg["project"]["seed"]
