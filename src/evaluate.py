@@ -33,7 +33,7 @@ from src.dataset import get_dataloaders, LABEL_NAMES
 logger = logging.getLogger(__name__)
 
 
-def evaluate_model(model, loader, device, num_classes=8, use_bf16=True):
+def evaluate_model(model, loader, device, num_classes=7, use_bf16=True):
     """
     Run inference on a dataloader and collect predictions.
     Returns all predictions, probabilities, and ground truth labels.
@@ -52,7 +52,7 @@ def evaluate_model(model, loader, device, num_classes=8, use_bf16=True):
             with autocast("cuda", dtype=amp_dtype, enabled=use_bf16):
                 logits, _ = model(images)
 
-            probs = F.softmax(logits, dim=1)
+            probs = F.softmax(logits.float(), dim=1)  # float32 for numpy compat
             preds = logits.argmax(dim=1)
 
             all_preds.append(preds.cpu().numpy())
@@ -66,7 +66,7 @@ def evaluate_model(model, loader, device, num_classes=8, use_bf16=True):
     return all_preds, all_probs, all_labels
 
 
-def compute_metrics(preds, probs, labels, class_names=None, num_classes=8):
+def compute_metrics(preds, probs, labels, class_names=None, num_classes=7):
     """Compute comprehensive evaluation metrics."""
     if class_names is None:
         class_names = LABEL_NAMES[:num_classes]
