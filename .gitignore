@@ -1,0 +1,44 @@
+# Data
+outputs/
+data/
+*.csv
+*.h5
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Environment
+.env
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Model checkpoints (large files)
+*.pth
+*.onnx
+*.trt
+*.engine
+
+# Logs
+*.log
+runs/
+
+# Temporary
+tmp/
+temp/

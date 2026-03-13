@@ -1,0 +1,189 @@
+# ============================================================================
+# Skin Cancer Detection — Production Config
+# Optimized for NVIDIA H100 GPU with 7-hour training budget
+# ============================================================================
+
+project:
+  name: "SkinCancerDetection"
+  version: "1.0.0"
+  seed: 42
+  output_dir: "outputs"
+  log_dir: "outputs/logs"
+  checkpoint_dir: "outputs/checkpoints"
+
+# ---- Data ----
+data:
+  dataset_name: "marmal88/skin_cancer"  # Hugging Face dataset (ISIC 2019)
+  image_size: 384
+  train_split: 0.75
+  val_split: 0.10
+  test_split: 0.15
+  num_workers: 16
+  pin_memory: true
+  prefetch_factor: 4
+
+  # Class names (ISIC 2019 — 8 classes)
+  class_names:
+    - "MEL"     # Melanoma
+    - "NV"      # Melanocytic nevus
+    - "BCC"     # Basal cell carcinoma
+    - "AK"      # Actinic keratosis
+    - "BKL"     # Benign keratosis
+    - "DF"      # Dermatofibroma
+    - "VASC"    # Vascular lesion
+    - "SCC"     # Squamous cell carcinoma
+
+  num_classes: 8
+
+  # Augmentation settings
+  augmentation:
+    random_resized_crop:
+      scale: [0.7, 1.0]
+      ratio: [0.8, 1.2]
+    horizontal_flip_p: 0.5
+    vertical_flip_p: 0.5
+    shift_scale_rotate:
+      shift_limit: 0.1
+      scale_limit: 0.15
+      rotate_limit: 45
+      p: 0.5
+    hue_saturation:
+      hue_shift: 15
+      sat_shift: 25
+      val_shift: 15
+      p: 0.4
+    brightness_contrast:
+      brightness_limit: 0.2
+      contrast_limit: 0.2
+      p: 0.4
+    coarse_dropout:
+      max_holes: 8
+      max_height: 32
+      max_width: 32
+      p: 0.3
+    clahe:
+      clip_limit: 4.0
+      p: 0.3
+    gauss_noise:
+      var_limit: [10.0, 50.0]
+      p: 0.2
+    elastic_transform:
+      alpha: 120
+      sigma: 6
+      p: 0.2
+
+# ---- Models ----
+model:
+  backbones:
+    - name: "eva02_large_patch14_448.mim_m38m_ft_in22k_in1k"
+      input_size: 448
+      params_m: 304
+    - name: "convnextv2_large.fcmae_ft_in22k_in1k"
+      input_size: 384
+      params_m: 198
+    - name: "swinv2_base_window12to24_192to384.ms_in22k_ft_in1k"
+      input_size: 384
+      params_m: 87
+
+  fusion:
+    type: "attention"  # attention | average | max
+    hidden_dim: 512
+    dropout: 0.4
+
+  num_classes: 8
+  pretrained: true
+
+# ---- Training ----
+training:
+  epochs: 40
+  batch_size: 64
+  gradient_accumulation_steps: 4  # effective batch = 256
+  
+  # Optimizer
+  optimizer:
+    type: "adamw"
+    lr: 1.0e-4
+    weight_decay: 0.05
+    betas: [0.9, 0.999]
+
+  # Scheduler
+  scheduler:
+    type: "cosine"
+    warmup_epochs: 5
+    min_lr: 1.0e-7
+    eta_min: 1.0e-7
+
+  # Regularization
+  label_smoothing: 0.1
+  mixup_alpha: 0.4
+  cutmix_alpha: 1.0
+  mixup_prob: 0.5
+  cutmix_prob: 0.5
+  drop_path_rate: 0.2
+
+  # Loss
+  loss:
+    type: "focal"
+    gamma: 2.0
+    use_class_weights: true
+
+  # Freeze schedule
+  freeze:
+    phase1_epochs: 5  # freeze backbones, train head only
+    backbone_lr_multiplier: 0.1  # backbone lr = head_lr * 0.1
+
+  # Early stopping
+  early_stopping:
+    patience: 8
+    monitor: "val_auroc"
+    mode: "max"
+    min_delta: 0.001
+
+  # Time budget
+  time_budget_hours: 7.0
+  save_every_n_epochs: 5
+
+# ---- H100 Optimizations ----
+h100:
+  bf16: true
+  tf32: true
+  torch_compile: true
+  compile_mode: "reduce-overhead"  # max-autotune | reduce-overhead
+  channels_last: true
+  cudnn_benchmark: true
+
+# ---- Evaluation ----
+evaluation:
+  tta:
+    enabled: true
+    transforms:
+      - "horizontal_flip"
+      - "vertical_flip"
+      - "rotate_90"
+      - "rotate_180"
+      - "rotate_270"
+  
+  gradcam:
+    enabled: true
+    num_samples: 20
+    save_dir: "outputs/gradcam"
+
+# ---- Export ----
+export:
+  onnx:
+    enabled: true
+    opset_version: 17
+    dynamic_batch: true
+    output_path: "outputs/model.onnx"
+  tensorrt:
+    enabled: false  # requires tensorrt installed
+    fp16: true
+    output_path: "outputs/model.trt"
+
+# ---- Gradio App ----
+app:
+  title: "SkinGuard AI — Skin Cancer Detection"
+  description: "Production-grade AI system for dermoscopic skin lesion classification"
+  server_port: 7860
+  share: false
+  max_image_size: 2048
