@@ -343,12 +343,12 @@ class Trainer:
                 loss = self.criterion(logits, labels)
 
             total_loss += loss.item()
-            probs = F.softmax(logits, dim=1)
+            probs = F.softmax(logits.float(), dim=1)  # float32 for precise probabilities
             _, predicted = logits.max(1)
             total += labels.size(0)
             correct += predicted.eq(labels).sum().item()
 
-            all_probs.append(probs.float().cpu().numpy())
+            all_probs.append(probs.cpu().numpy())
             all_labels.append(labels.cpu().numpy())
 
         avg_loss = total_loss / len(loader)
