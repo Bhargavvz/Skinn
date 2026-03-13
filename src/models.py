@@ -100,6 +100,7 @@ class SkinCancerEnsemble(nn.Module):
         # Load backbones from timm (Hugging Face)
         self.backbones = nn.ModuleList()
         self.backbone_names = []
+        self.backbone_input_sizes = []
         feature_dims = []
 
         for bc in backbone_configs:
@@ -127,8 +128,9 @@ class SkinCancerEnsemble(nn.Module):
 
             self.backbones.append(backbone)
             self.backbone_names.append(name)
+            self.backbone_input_sizes.append(bc.get("input_size", 384))
             feature_dims.append(feat_dim)
-            logger.info(f"  → {name}: feature_dim={feat_dim}, params={sum(p.numel() for p in backbone.parameters()) / 1e6:.1f}M")
+            logger.info(f"  → {name}: input={bc.get('input_size', 384)}px, feature_dim={feat_dim}, params={sum(p.numel() for p in backbone.parameters()) / 1e6:.1f}M")
 
         # Attention-based fusion
         hidden_dim = 512
@@ -172,10 +174,15 @@ class SkinCancerEnsemble(nn.Module):
         logger.info(f"Backbones UNFROZEN — all {trainable / 1e6:.1f}M params trainable")
 
     def get_backbone_features(self, x):
-        """Extract features from each backbone."""
+        """Extract features from each backbone, resizing input to match expected size."""
         features = []
-        for backbone in self.backbones:
-            feat = backbone(x)
+        _, _, H, W = x.shape
+        for backbone, expected_size in zip(self.backbones, self.backbone_input_sizes):
+            if H != expected_size or W != expected_size:
+                resized = F.interpolate(x, size=(expected_size, expected_size), mode='bilinear', align_corners=False)
+            else:
+                resized = x
+            feat = backbone(resized)
             features.append(feat)
         return features
 
