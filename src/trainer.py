@@ -190,7 +190,7 @@ class Trainer:
         logger.info(f"Device: {self.device}")
         if torch.cuda.is_available():
             logger.info(f"GPU: {torch.cuda.get_device_name(0)}")
-            logger.info(f"GPU Memory: {torch.cuda.get_device_properties(0).total_mem / 1e9:.1f} GB")
+            logger.info(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
         logger.info(f"Total Parameters: {total_params / 1e6:.1f}M")
         logger.info(f"Trainable Parameters: {trainable_params / 1e6:.1f}M")
         logger.info(f"Training Samples: {len(self.train_loader.dataset)}")

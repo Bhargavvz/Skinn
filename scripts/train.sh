@@ -30,7 +30,7 @@ python -c "
 import torch
 if torch.cuda.is_available():
     print(f'  GPU: {torch.cuda.get_device_name(0)}')
-    print(f'  Memory: {torch.cuda.get_device_properties(0).total_mem / 1e9:.1f} GB')
+    print(f'  Memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB')
     print(f'  CUDA: {torch.version.cuda}')
     print(f'  BF16 Support: {torch.cuda.is_bf16_supported()}')
 else:
