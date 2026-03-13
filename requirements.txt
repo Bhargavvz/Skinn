@@ -40,6 +40,7 @@ gradio>=4.0.0
 
 # Export
 onnx>=1.15.0
+onnxscript>=0.1.0
 onnxruntime>=1.16.0
 
 # Report generation
