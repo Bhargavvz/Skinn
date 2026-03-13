@@ -146,7 +146,7 @@ training:
 h100:
   bf16: true
   tf32: true
-  torch_compile: true
+  torch_compile: false  # disabled — hangs on multi-backbone ensemble
   compile_mode: "reduce-overhead"  # max-autotune | reduce-overhead
   channels_last: true
   cudnn_benchmark: true

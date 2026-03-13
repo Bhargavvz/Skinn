@@ -65,7 +65,6 @@ def get_train_transforms(cfg):
                               "y": (-aug_cfg["shift_scale_rotate"]["shift_limit"], aug_cfg["shift_scale_rotate"]["shift_limit"])},
             scale=(1 - aug_cfg["shift_scale_rotate"]["scale_limit"], 1 + aug_cfg["shift_scale_rotate"]["scale_limit"]),
             rotate=(-aug_cfg["shift_scale_rotate"]["rotate_limit"], aug_cfg["shift_scale_rotate"]["rotate_limit"]),
-            mode=0,
             p=aug_cfg["shift_scale_rotate"]["p"]
         ),
         A.OneOf([
