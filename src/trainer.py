@@ -359,13 +359,20 @@ class Trainer:
         all_labels = np.concatenate(all_labels)
 
         try:
-            # One-vs-rest AUROC
-            auroc = roc_auc_score(
-                all_labels, all_probs,
-                multi_class="ovr",
-                average="weighted",
-            )
-        except ValueError:
+            # One-vs-rest AUROC — need labels param for classes not in y_true
+            unique_labels = np.unique(all_labels)
+            if len(unique_labels) >= 2:
+                auroc = roc_auc_score(
+                    all_labels, all_probs,
+                    multi_class="ovr",
+                    average="weighted",
+                    labels=list(range(all_probs.shape[1])),
+                )
+            else:
+                auroc = 0.0
+                logger.warning(f"AUROC: only {len(unique_labels)} class(es) in val labels, skipping")
+        except Exception as e:
+            logger.warning(f"AUROC computation failed: {e}")
             auroc = 0.0
 
         return avg_loss, accuracy, auroc
